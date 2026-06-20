@@ -1,0 +1,19 @@
+package ${packageName}.service;
+
+import ${packageName}.domain.${ClassName};
+import java.util.List;
+
+public interface ${ClassName}Service
+{
+    ${ClassName} getById(${pkColumn.javaType} ${pkParamName});
+
+    List<${ClassName}> list(${ClassName} query);
+
+    int insert(${ClassName} entity);
+
+    int upsert(${ClassName} entity);
+
+    int update(${ClassName} entity);
+
+    int deleteById(${pkColumn.javaType} ${pkParamName});
+}

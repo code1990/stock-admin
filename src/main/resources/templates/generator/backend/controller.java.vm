@@ -1,0 +1,54 @@
+package ${packageName}.controller;
+
+import ${packageName}.domain.${ClassName};
+import ${packageName}.service.${ClassName}Service;
+import java.util.List;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/${moduleName}/${businessName}")
+public class ${ClassName}Controller
+{
+    private final ${ClassName}Service service;
+
+    public ${ClassName}Controller(${ClassName}Service service)
+    {
+        this.service = service;
+    }
+
+    @GetMapping("/list")
+    public List<${ClassName}> list(${ClassName} query)
+    {
+        return service.list(query);
+    }
+
+    @GetMapping("/{${pkParamName}}")
+    public ${ClassName} get(@PathVariable("${pkParamName}") ${pkColumn.javaType} ${pkParamName})
+    {
+        return service.getById(${pkParamName});
+    }
+
+    @PostMapping
+    public int create(@RequestBody ${ClassName} entity)
+    {
+        return service.insert(entity);
+    }
+
+    @PostMapping("/upsert")
+    public int upsert(@RequestBody ${ClassName} entity)
+    {
+        return service.upsert(entity);
+    }
+
+    @PutMapping
+    public int update(@RequestBody ${ClassName} entity)
+    {
+        return service.update(entity);
+    }
+
+    @DeleteMapping("/{${pkParamName}}")
+    public int delete(@PathVariable("${pkParamName}") ${pkColumn.javaType} ${pkParamName})
+    {
+        return service.deleteById(${pkParamName});
+    }
+}

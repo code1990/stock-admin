@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stockadmin.selection.mapper.Stock60MinPoolMapper">
+
+    <sql id="BaseColumns">
+        SELECT pool.stock_code AS stock_code,
+               COALESCE(pool.stock_name, base.stock_name) AS stock_name,
+               COALESCE(pool.market_code, base.market_code) AS market_code,
+               pool.signal_name AS signal_name,
+               pool.org_num AS org_num
+        FROM t_stock_pool_60 pool
+        LEFT JOIN t_stock_pool base ON base.code = pool.stock_code
+    </sql>
+
+    <select id="selectBySignalName" resultType="com.stockadmin.selection.domain.Stock60MinPoolEntry">
+        <include refid="BaseColumns"/>
+        WHERE pool.signal_name = #{signalName}
+          AND pool.stock_code IS NOT NULL
+          AND TRIM(pool.stock_code) &lt;&gt; ''
+        ORDER BY pool.stock_code, pool.signal_name
+    </select>
+
+    <select id="selectBySignalNameAndStockCodes" resultType="com.stockadmin.selection.domain.Stock60MinPoolEntry">
+        <include refid="BaseColumns"/>
+        WHERE pool.signal_name = #{signalName}
+          AND pool.stock_code IS NOT NULL
+          AND TRIM(pool.stock_code) &lt;&gt; ''
+          AND pool.stock_code IN
+        <foreach collection="stockCodes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+        ORDER BY pool.stock_code, pool.signal_name
+    </select>
+
+</mapper>

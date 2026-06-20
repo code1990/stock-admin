@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="${packageName}.mapper.${ClassName}Mapper">
+
+    <resultMap id="${businessName}Map" type="${packageName}.domain.${ClassName}">
+#foreach($column in $columns)
+    #if($column.primaryKey)
+        <id column="${column.columnName}" property="${column.javaField}"/>
+    #else
+        <result column="${column.columnName}" property="${column.javaField}"/>
+    #end
+#end
+    </resultMap>
+
+    <sql id="${businessName}Columns">
+#foreach($column in $columns)
+        ${column.columnName}#if($foreach.hasNext),#end
+#end
+    </sql>
+
+    <select id="selectById" resultMap="${businessName}Map">
+        select <include refid="${businessName}Columns"/> from ${tableName} where ${pkColumn.columnName} = #{${pkParamName}}
+    </select>
+
+    <select id="selectList" resultMap="${businessName}Map">
+        select <include refid="${businessName}Columns"/> from ${tableName}
+        <where>
+#foreach($column in $queryColumns)
+#if($column.javaType == "String")
+            <if test="${column.javaField} != null and ${column.javaField} != ''">
+                <bind name="${column.javaField}Like" value="'%' + ${column.javaField} + '%'" />
+                and ${column.columnName} like #{${column.javaField}Like}
+            </if>
+#else
+            <if test="${column.javaField} != null">
+                and ${column.columnName} = #{${column.javaField}}
+            </if>
+#end
+#end
+        </where>
+    </select>
+
+    <insert id="insert">
+        insert into ${tableName}
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+#if($autoIncrementPkColumn)
+            <if test="${autoIncrementPkColumn.javaField} != null">
+                ${autoIncrementPkColumn.columnName},
+            </if>
+#end
+#foreach($column in $insertColumns)
+            ${column.columnName},
+#end
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+#if($autoIncrementPkColumn)
+            <if test="${autoIncrementPkColumn.javaField} != null">
+                #{${autoIncrementPkColumn.javaField}},
+            </if>
+#end
+#foreach($column in $insertColumns)
+            #{${column.javaField}},
+#end
+        </trim>
+    </insert>
+
+    <insert id="upsert" databaseId="mysql">
+        insert into ${tableName}
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+#if($autoIncrementPkColumn)
+            <if test="${autoIncrementPkColumn.javaField} != null">
+                ${autoIncrementPkColumn.columnName},
+            </if>
+#end
+#foreach($column in $insertColumns)
+            ${column.columnName},
+#end
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+#if($autoIncrementPkColumn)
+            <if test="${autoIncrementPkColumn.javaField} != null">
+                #{${autoIncrementPkColumn.javaField}},
+            </if>
+#end
+#foreach($column in $insertColumns)
+            #{${column.javaField}},
+#end
+        </trim>
+#if($hasUpdatableColumns)
+        on duplicate key update
+#foreach($column in $updateColumns)
+            ${column.columnName} = values(${column.columnName})#if($foreach.hasNext),#end
+#end
+#else
+            ${pkColumn.columnName} = values(${pkColumn.columnName})
+#end
+    </insert>
+
+    <insert id="upsert" databaseId="sqlite">
+        insert into ${tableName}
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+#if($autoIncrementPkColumn)
+            <if test="${autoIncrementPkColumn.javaField} != null">
+                ${autoIncrementPkColumn.columnName},
+            </if>
+#end
+#foreach($column in $insertColumns)
+            ${column.columnName},
+#end
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+#if($autoIncrementPkColumn)
+            <if test="${autoIncrementPkColumn.javaField} != null">
+                #{${autoIncrementPkColumn.javaField}},
+            </if>
+#end
+#foreach($column in $insertColumns)
+            #{${column.javaField}},
+#end
+        </trim>
+#if($hasUpdatableColumns)
+        on conflict(${pkColumn.columnName}) do update set
+#foreach($column in $updateColumns)
+            ${column.columnName} = excluded.${column.columnName}#if($foreach.hasNext),#end
+#end
+#else
+        on conflict(${pkColumn.columnName}) do nothing
+#end
+    </insert>
+
+    <update id="update">
+        update ${tableName}
+        <set>
+#foreach($column in $updateColumns)
+            ${column.columnName} = #{${column.javaField}},
+#end
+        </set>
+        where ${pkColumn.columnName} = #{${pkColumn.javaField}}
+    </update>
+
+    <delete id="deleteById">
+        delete from ${tableName} where ${pkColumn.columnName} = #{${pkParamName}}
+    </delete>
+</mapper>

@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: stock-admin
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: ${STOCK_ADMIN_DB_URL:jdbc:sqlite:/data/stock_stat/stock_stat.db}
+    username: ${STOCK_ADMIN_DB_USERNAME:}
+    password: ${STOCK_ADMIN_DB_PASSWORD:}
+
+server:
+  port: 18080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.stockadmin: INFO
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.stockadmin.selection.domain
+  configuration:
+    map-underscore-to-camel-case: true
+
+stock-admin:
+  selection:
+    default-limit: 100

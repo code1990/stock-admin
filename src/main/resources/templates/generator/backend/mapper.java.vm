@@ -1,0 +1,22 @@
+package ${packageName}.mapper;
+
+import ${packageName}.domain.${ClassName};
+import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
+public interface ${ClassName}Mapper
+{
+    ${ClassName} selectById(@Param("${pkParamName}") ${pkColumn.javaType} ${pkParamName});
+
+    List<${ClassName}> selectList(${ClassName} query);
+
+    int insert(${ClassName} entity);
+
+    int upsert(${ClassName} entity);
+
+    int update(${ClassName} entity);
+
+    int deleteById(@Param("${pkParamName}") ${pkColumn.javaType} ${pkParamName});
+}

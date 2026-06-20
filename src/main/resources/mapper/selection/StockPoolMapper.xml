@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stockadmin.selection.mapper.StockPoolMapper">
+
+    <select id="selectEnabledStocks" resultType="com.stockadmin.selection.domain.StockInfo">
+        SELECT code, stock_name, market_code, stock_type
+        FROM t_stock_pool
+        WHERE stock_type = 'stock'
+        ORDER BY code
+    </select>
+
+    <select id="selectByCodes" resultType="com.stockadmin.selection.domain.StockInfo">
+        SELECT code, stock_name, market_code, stock_type
+        FROM t_stock_pool
+        WHERE stock_type = 'stock'
+          AND code IN
+        <foreach collection="stockCodes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+        ORDER BY code
+    </select>
+
+</mapper>

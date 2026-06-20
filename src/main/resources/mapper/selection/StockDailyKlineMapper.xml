@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stockadmin.selection.mapper.StockDailyKlineMapper">
+
+    <select id="selectLatestTradeDate" resultType="java.lang.Integer">
+        SELECT MAX(trade_date)
+        FROM t_stock_daily_240
+    </select>
+
+    <select id="selectByStockCodesAndTradeDate" resultType="com.stockadmin.selection.domain.StockDailyKlineRow">
+        SELECT stock_code, stock_name, trade_date, open, high, low, close, vol, amount, percent, pre_close
+        FROM t_stock_daily_240
+        WHERE stock_code IN
+        <foreach collection="stockCodes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+          AND trade_date &lt;= #{tradeDate}
+        ORDER BY stock_code, trade_date
+    </select>
+
+</mapper>

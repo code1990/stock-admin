@@ -1,0 +1,54 @@
+package ${packageName}.service.impl;
+
+import ${packageName}.domain.${ClassName};
+import ${packageName}.mapper.${ClassName}Mapper;
+import ${packageName}.service.${ClassName}Service;
+import java.util.List;
+import org.springframework.stereotype.Service;
+
+@Service
+public class ${ClassName}ServiceImpl implements ${ClassName}Service
+{
+    private final ${ClassName}Mapper mapper;
+
+    public ${ClassName}ServiceImpl(${ClassName}Mapper mapper)
+    {
+        this.mapper = mapper;
+    }
+
+    @Override
+    public ${ClassName} getById(${pkColumn.javaType} ${pkParamName})
+    {
+        return mapper.selectById(${pkParamName});
+    }
+
+    @Override
+    public List<${ClassName}> list(${ClassName} query)
+    {
+        return mapper.selectList(query);
+    }
+
+    @Override
+    public int insert(${ClassName} entity)
+    {
+        return mapper.insert(entity);
+    }
+
+    @Override
+    public int upsert(${ClassName} entity)
+    {
+        return mapper.upsert(entity);
+    }
+
+    @Override
+    public int update(${ClassName} entity)
+    {
+        return mapper.update(entity);
+    }
+
+    @Override
+    public int deleteById(${pkColumn.javaType} ${pkParamName})
+    {
+        return mapper.deleteById(${pkParamName});
+    }
+}

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stockadmin.selection.mapper.StockSelectionQuoteMapper">
+
+    <select id="selectAllRealtimeQuotes" resultType="com.stockadmin.selection.domain.StockRealtimeQuoteRow">
+        SELECT stock_code,
+               prod_name,
+               market_date,
+               open_px,
+               high_px,
+               low_px,
+               last_px,
+               preclose_px,
+               business_amount,
+               current_amount,
+               px_change_rate
+        FROM t_stock_quote
+    </select>
+
+</mapper>
