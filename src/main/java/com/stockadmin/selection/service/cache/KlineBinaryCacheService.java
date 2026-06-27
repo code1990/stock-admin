@@ -85,14 +85,14 @@ public class KlineBinaryCacheService
         this.stock60MinQuoteMergeService = stock60MinQuoteMergeService;
     }
 
-    public boolean dailyCacheExists()
+    public boolean dailyCacheExists(Integer tradeDate)
     {
-        return Files.isRegularFile(dailyCachePath());
+        return Files.isRegularFile(dailyCachePath(tradeDate));
     }
 
-    public boolean sixtyMinCacheExists()
+    public boolean sixtyMinCacheExists(Integer tradeDate)
     {
-        return Files.isRegularFile(sixtyMinCachePath());
+        return Files.isRegularFile(sixtyMinCachePath(tradeDate));
     }
 
     public StockKlineCachePrepareResponse prepareDaily(Integer requestedTradeDate)
@@ -103,7 +103,7 @@ public class KlineBinaryCacheService
         boolean includeQuote = shouldIncludeIntradayQuote() && quoteSnapshot != null && quoteSnapshot.getLatestTradeDate() >= targetTradeDate.intValue();
         List<StockInfo> stocks = stockPoolQueryService.queryStocks(null);
         writeDailyCache(stocks, targetTradeDate, includeQuote ? quoteSnapshot : null);
-        return buildResponse(PERIOD_240, targetTradeDate, stocks.size(), dailyCachePath(), includeQuote);
+        return buildResponse(PERIOD_240, targetTradeDate, stocks.size(), dailyCachePath(targetTradeDate), includeQuote);
     }
 
     public StockKlineCachePrepareResponse prepareSixtyMin(Integer requestedTradeDate)
@@ -117,51 +117,51 @@ public class KlineBinaryCacheService
         boolean includeQuote = shouldIncludeIntradayQuote() && latestQuoteTradeDate != null && latestQuoteTradeDate.intValue() >= targetTradeDate.intValue();
         Stock60MinQuoteSnapshot quoteSnapshot = includeQuote ? stock60MinQuoteQueryService.querySnapshot(stockCodes, targetTradeDate) : null;
         writeSixtyMinCache(stocks, targetTradeDate, quoteSnapshot);
-        return buildResponse(PERIOD_60, targetTradeDate, stocks.size(), sixtyMinCachePath(), includeQuote);
+        return buildResponse(PERIOD_60, targetTradeDate, stocks.size(), sixtyMinCachePath(targetTradeDate), includeQuote);
     }
 
-    public List<StockDailyKlineRow> readDailyRows(String stockCode)
+    public List<StockDailyKlineRow> readDailyRows(String stockCode, Integer tradeDate)
     {
-        return readRows(stockCode, dailyCachePath(), true).dailyRows;
+        return readRows(stockCode, dailyCachePath(tradeDate), true).dailyRows;
     }
 
     public List<StockDailyKlineRow> loadDailyRows(String stockCode, Integer tradeDate)
     {
-        if (!dailyCacheExists())
+        if (!dailyCacheExists(tradeDate))
         {
             prepareDaily(tradeDate);
         }
-        return readDailyRows(stockCode);
+        return readDailyRows(stockCode, tradeDate);
     }
 
-    public List<Stock60MinKlineRow> readSixtyMinRows(String stockCode)
+    public List<Stock60MinKlineRow> readSixtyMinRows(String stockCode, Integer tradeDate)
     {
-        return readRows(stockCode, sixtyMinCachePath(), false).sixtyMinRows;
+        return readRows(stockCode, sixtyMinCachePath(tradeDate), false).sixtyMinRows;
     }
 
     public List<Stock60MinKlineRow> loadSixtyMinRows(String stockCode, Integer tradeDate)
     {
-        if (!sixtyMinCacheExists())
+        if (!sixtyMinCacheExists(tradeDate))
         {
             prepareSixtyMin(tradeDate);
         }
-        return readSixtyMinRows(stockCode);
+        return readSixtyMinRows(stockCode, tradeDate);
     }
 
-    public Integer readDailyTradeDate()
+    public Integer readDailyTradeDate(Integer tradeDate)
     {
-        return readHeader(dailyCachePath()).tradeDate;
+        return readHeader(dailyCachePath(tradeDate)).tradeDate;
     }
 
-    public Integer readSixtyMinTradeDate()
+    public Integer readSixtyMinTradeDate(Integer tradeDate)
     {
-        return readHeader(sixtyMinCachePath()).tradeDate;
+        return readHeader(sixtyMinCachePath(tradeDate)).tradeDate;
     }
 
     private void writeDailyCache(List<StockInfo> stocks, Integer targetTradeDate, RealtimeQuoteSnapshot quoteSnapshot)
     {
         List<CacheEntry> entries = new ArrayList<CacheEntry>();
-        Path dataPath = cacheDir.resolve("daily_240.data.tmp");
+        Path dataPath = cacheDir.resolve("daily_240_" + targetTradeDate + ".data.tmp");
         ensureCacheDir();
         try
         {
@@ -193,7 +193,7 @@ public class KlineBinaryCacheService
             {
                 dataOut.close();
             }
-            writeFinalCache(PERIOD_240, targetTradeDate, entries, dataPath, dailyCachePath());
+            writeFinalCache(PERIOD_240, targetTradeDate, entries, dataPath, dailyCachePath(targetTradeDate));
         }
         catch (IOException ex)
         {
@@ -208,7 +208,7 @@ public class KlineBinaryCacheService
     private void writeSixtyMinCache(List<StockInfo> stocks, Integer targetTradeDate, Stock60MinQuoteSnapshot quoteSnapshot)
     {
         List<CacheEntry> entries = new ArrayList<CacheEntry>();
-        Path dataPath = cacheDir.resolve("daily_60.data.tmp");
+        Path dataPath = cacheDir.resolve("daily_60_" + targetTradeDate + ".data.tmp");
         ensureCacheDir();
         try
         {
@@ -240,7 +240,7 @@ public class KlineBinaryCacheService
             {
                 dataOut.close();
             }
-            writeFinalCache(PERIOD_60, targetTradeDate, entries, dataPath, sixtyMinCachePath());
+            writeFinalCache(PERIOD_60, targetTradeDate, entries, dataPath, sixtyMinCachePath(targetTradeDate));
         }
         catch (IOException ex)
         {
@@ -594,14 +594,23 @@ public class KlineBinaryCacheService
         return stockCodes;
     }
 
-    private Path dailyCachePath()
+    private Path dailyCachePath(Integer tradeDate)
     {
-        return cacheDir.resolve("kline_240.bin");
+        return cacheDir.resolve("kline_240_" + requireTradeDate(tradeDate) + ".bin");
     }
 
-    private Path sixtyMinCachePath()
+    private Path sixtyMinCachePath(Integer tradeDate)
     {
-        return cacheDir.resolve("kline_60.bin");
+        return cacheDir.resolve("kline_60_" + requireTradeDate(tradeDate) + ".bin");
+    }
+
+    private int requireTradeDate(Integer tradeDate)
+    {
+        if (tradeDate == null || tradeDate.intValue() <= 0)
+        {
+            throw new BusinessException("tradeDate is required for kline cache file");
+        }
+        return tradeDate.intValue();
     }
 
     private void ensureCacheDir()
