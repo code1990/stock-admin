@@ -1,5 +1,6 @@
 target/
 runtime/
 *.log
+*.log.*.zip
 .idea/
 *.iml

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_NAME="aidex-admin"
+APP_NAME="stock-admin"
 JAR_PATH="${BASE_DIR}/target/${APP_NAME}.jar"
 PID_FILE="${BASE_DIR}/runtime/${APP_NAME}.pid"
 LOG_FILE="${BASE_DIR}/runtime/logs/${APP_NAME}.log"
@@ -21,6 +21,6 @@ if [ -f "${PID_FILE}" ] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
   exit 0
 fi
 
-nohup java -jar "${JAR_PATH}" > "${LOG_FILE}" 2>&1 &
+setsid nohup java -jar "${JAR_PATH}" > "${LOG_FILE}" 2>&1 < /dev/null &
 echo $! > "${PID_FILE}"
 echo "${APP_NAME} started, pid=$(cat "${PID_FILE}")"

@@ -3,8 +3,12 @@ package com.stockadmin.selection.service.query;
 import com.stockadmin.selection.domain.RealtimeQuoteSnapshot;
 import com.stockadmin.selection.domain.StockRealtimeQuoteRow;
 import com.stockadmin.selection.mapper.StockSelectionQuoteMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +16,8 @@ import java.util.Map;
 @Service
 public class StockSelectionQuoteQueryService
 {
+    private static final Logger log = LoggerFactory.getLogger(StockSelectionQuoteQueryService.class);
+
     private final StockSelectionQuoteMapper stockSelectionQuoteMapper;
 
     public StockSelectionQuoteQueryService(StockSelectionQuoteMapper stockSelectionQuoteMapper)
@@ -21,7 +27,16 @@ public class StockSelectionQuoteQueryService
 
     public RealtimeQuoteSnapshot queryRealtimeQuoteSnapshot()
     {
-        List<StockRealtimeQuoteRow> quotes = stockSelectionQuoteMapper.selectAllRealtimeQuotes();
+        List<StockRealtimeQuoteRow> quotes;
+        try
+        {
+            quotes = stockSelectionQuoteMapper.selectAllRealtimeQuotes();
+        }
+        catch (DataAccessException ex)
+        {
+            log.warn("Query t_stock_quote failed, continue without intraday daily quote. message={}", ex.getMessage());
+            quotes = Collections.emptyList();
+        }
         Map<String, StockRealtimeQuoteRow> quoteByRawCode = new HashMap<String, StockRealtimeQuoteRow>();
         Map<String, StockRealtimeQuoteRow> quoteByThsCode = new HashMap<String, StockRealtimeQuoteRow>();
         int latestTradeDate = 0;

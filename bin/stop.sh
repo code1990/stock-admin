@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PID_FILE="${BASE_DIR}/runtime/aidex-admin.pid"
+PID_FILE="${BASE_DIR}/runtime/stock-admin.pid"
 
 if [ ! -f "${PID_FILE}" ]; then
   echo "pid file not found"

@@ -13,6 +13,8 @@ import java.util.Map;
 @Service
 public class Stock60MinPoolQueryService
 {
+    private static final int SQLITE_IN_BATCH_SIZE = 800;
+
     private final Stock60MinPoolMapper stock60MinPoolMapper;
 
     public Stock60MinPoolQueryService(Stock60MinPoolMapper stock60MinPoolMapper)
@@ -26,7 +28,13 @@ public class Stock60MinPoolQueryService
         {
             return stock60MinPoolMapper.selectBySignalName(signalName);
         }
-        return stock60MinPoolMapper.selectBySignalNameAndStockCodes(signalName, stockCodes);
+        List<Stock60MinPoolEntry> entries = new ArrayList<Stock60MinPoolEntry>();
+        for (int start = 0; start < stockCodes.size(); start += SQLITE_IN_BATCH_SIZE)
+        {
+            int end = Math.min(start + SQLITE_IN_BATCH_SIZE, stockCodes.size());
+            entries.addAll(stock60MinPoolMapper.selectBySignalNameAndStockCodes(signalName, stockCodes.subList(start, end)));
+        }
+        return entries;
     }
 
     public List<StockInfo> toStockInfos(List<Stock60MinPoolEntry> poolEntries)

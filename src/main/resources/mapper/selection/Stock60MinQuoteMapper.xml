@@ -5,20 +5,20 @@
 <mapper namespace="com.stockadmin.selection.mapper.Stock60MinQuoteMapper">
 
     <select id="selectLatestTradeDate" resultType="java.lang.Long">
-        SELECT MAX(trade_date)
+        SELECT MAX(trade_time)
         FROM t_stock_quote_60
     </select>
 
     <select id="selectByStockCodesAndTradeDate" resultType="com.stockadmin.selection.domain.Stock60MinKlineRow">
-        SELECT stock_code, stock_name, trade_date, open, high, low, close, vol, amount, percent, pre_close
+        SELECT stock_code, stock_name, trade_time AS trade_date, open, high, low, close, vol, amount, percent, pre_close
         FROM t_stock_quote_60
         WHERE stock_code IN
         <foreach collection="stockCodes" item="code" open="(" separator="," close=")">
             #{code}
         </foreach>
-          AND trade_date &gt;= #{startTradeDateInclusive}
-          AND trade_date &lt; #{endTradeDateExclusive}
-        ORDER BY stock_code, trade_date
+          AND trade_time &gt;= #{startTradeDateInclusive}
+          AND trade_time &lt; #{endTradeDateExclusive}
+        ORDER BY stock_code, trade_time
     </select>
 
 </mapper>

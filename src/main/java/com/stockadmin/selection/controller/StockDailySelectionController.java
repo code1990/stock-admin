@@ -14,7 +14,7 @@ import javax.validation.Valid;
 
 @Validated
 @RestController
-@RequestMapping("/api/selection/day")
+@RequestMapping({ "/api/selection/day", "/api/selection/240min" })
 public class StockDailySelectionController
 {
     private final StockSelectionService stockSelectionService;
