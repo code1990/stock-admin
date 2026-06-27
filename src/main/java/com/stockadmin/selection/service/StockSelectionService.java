@@ -7,7 +7,6 @@ import com.stockadmin.selection.domain.RealtimeQuoteSnapshot;
 import com.stockadmin.selection.domain.StockDailyKlineRow;
 import com.stockadmin.selection.domain.StockFormulaDefinition;
 import com.stockadmin.selection.domain.StockInfo;
-import com.stockadmin.selection.dto.StockKlineCachePrepareResponse;
 import com.stockadmin.selection.dto.StockSelectionHitItem;
 import com.stockadmin.selection.dto.StockNmEvaluateItem;
 import com.stockadmin.selection.dto.StockNmEvaluateRequest;
@@ -143,11 +142,6 @@ public class StockSelectionService
         response.setTotal(Integer.valueOf(items.size()));
         response.setItems(items);
         return response;
-    }
-
-    public StockKlineCachePrepareResponse prepareDailyCache(Integer tradeDate)
-    {
-        return klineBinaryCacheService.prepareDaily(tradeDate);
     }
 
     private void validateRequest(StockSelectionRequest request)

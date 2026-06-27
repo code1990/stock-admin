@@ -9,6 +9,7 @@ import com.stockadmin.selection.dto.StockSelectionResponse;
 import com.stockadmin.selection.service.SelectionPeriod;
 import com.stockadmin.selection.service.Stock60MinSelectionService;
 import com.stockadmin.selection.service.StockSelectionService;
+import com.stockadmin.selection.service.cache.KlineBinaryCacheService;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,12 +26,15 @@ public class StockDailySelectionController
 {
     private final StockSelectionService stockSelectionService;
     private final Stock60MinSelectionService stock60MinSelectionService;
+    private final KlineBinaryCacheService klineBinaryCacheService;
 
     public StockDailySelectionController(StockSelectionService stockSelectionService,
-                                         Stock60MinSelectionService stock60MinSelectionService)
+                                         Stock60MinSelectionService stock60MinSelectionService,
+                                         KlineBinaryCacheService klineBinaryCacheService)
     {
         this.stockSelectionService = stockSelectionService;
         this.stock60MinSelectionService = stock60MinSelectionService;
+        this.klineBinaryCacheService = klineBinaryCacheService;
     }
 
     @PostMapping("/run")
@@ -55,8 +59,8 @@ public class StockDailySelectionController
     {
         if (SelectionPeriod.isSixtyMin(period))
         {
-            return ApiResponse.success(stock60MinSelectionService.prepareSixtyMinCache(tradeDate));
+            return ApiResponse.success(klineBinaryCacheService.prepareSixtyMin(tradeDate));
         }
-        return ApiResponse.success(stockSelectionService.prepareDailyCache(tradeDate));
+        return ApiResponse.success(klineBinaryCacheService.prepareDaily(tradeDate));
     }
 }

@@ -8,7 +8,6 @@ import com.stockadmin.selection.domain.Stock60MinPoolEntry;
 import com.stockadmin.selection.domain.Stock60MinSelectionContext;
 import com.stockadmin.selection.domain.StockFormulaDefinition;
 import com.stockadmin.selection.domain.StockInfo;
-import com.stockadmin.selection.dto.StockKlineCachePrepareResponse;
 import com.stockadmin.selection.dto.StockNmEvaluateItem;
 import com.stockadmin.selection.dto.StockNmEvaluateRequest;
 import com.stockadmin.selection.dto.StockNmEvaluateResponse;
@@ -125,11 +124,6 @@ public class Stock60MinSelectionService
             }
         });
         return buildResponse(formula.getName(), targetTradeDate, hits, request.getLimit());
-    }
-
-    public StockKlineCachePrepareResponse prepareSixtyMinCache(Integer tradeDate)
-    {
-        return klineBinaryCacheService.prepareSixtyMin(tradeDate);
     }
 
     public StockNmEvaluateResponse evaluateNm(StockNmEvaluateRequest request)

@@ -17,11 +17,13 @@ if [ ! -f "${JAR_PATH}" ]; then
   exit 1
 fi
 
-if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
+if command -v systemctl >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1; then
   if systemctl is-active --quiet "${UNIT_NAME}"; then
     echo "${APP_NAME} is already running as ${UNIT_NAME}"
     exit 0
   fi
+  systemctl reset-failed "${UNIT_NAME}" >/dev/null 2>&1 || true
+  rm -f "${PID_FILE}"
   systemd-run \
     --unit="${APP_NAME}" \
     --working-directory="${BASE_DIR}" \

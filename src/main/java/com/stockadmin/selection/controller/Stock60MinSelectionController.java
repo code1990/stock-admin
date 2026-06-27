@@ -7,6 +7,7 @@ import com.stockadmin.selection.dto.StockNmEvaluateResponse;
 import com.stockadmin.selection.dto.StockSelectionRequest;
 import com.stockadmin.selection.dto.StockSelectionResponse;
 import com.stockadmin.selection.service.Stock60MinSelectionService;
+import com.stockadmin.selection.service.cache.KlineBinaryCacheService;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,10 +23,13 @@ import javax.validation.Valid;
 public class Stock60MinSelectionController
 {
     private final Stock60MinSelectionService stock60MinSelectionService;
+    private final KlineBinaryCacheService klineBinaryCacheService;
 
-    public Stock60MinSelectionController(Stock60MinSelectionService stock60MinSelectionService)
+    public Stock60MinSelectionController(Stock60MinSelectionService stock60MinSelectionService,
+                                         KlineBinaryCacheService klineBinaryCacheService)
     {
         this.stock60MinSelectionService = stock60MinSelectionService;
+        this.klineBinaryCacheService = klineBinaryCacheService;
     }
 
     @PostMapping("/run")
@@ -43,6 +47,6 @@ public class Stock60MinSelectionController
     @PostMapping("/kline-cache/prepare")
     public ApiResponse<StockKlineCachePrepareResponse> prepareKlineCache(@RequestParam(value = "tradeDate", required = false) Integer tradeDate)
     {
-        return ApiResponse.success(stock60MinSelectionService.prepareSixtyMinCache(tradeDate));
+        return ApiResponse.success(klineBinaryCacheService.prepareSixtyMin(tradeDate));
     }
 }
