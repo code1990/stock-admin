@@ -133,6 +133,51 @@ public class StockFormulaEngineService
         }
     }
 
+    public Double evaluateDailyVariable(String formulaCode,
+                                        String variableName,
+                                        StockInfo stock,
+                                        List<StockDailyKlineRow> rows,
+                                        Integer targetTradeDate)
+    {
+        if (formulaCode == null || formulaCode.trim().isEmpty() || variableName == null || variableName.trim().isEmpty()
+                || stock == null || rows == null || rows.isEmpty() || targetTradeDate == null)
+        {
+            return null;
+        }
+
+        Kline kline = stockKlineBuilder.build(stock.getCode(), stock.getStockName(), rows);
+        if (kline == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            Interpreter interpreter = new Interpreter(stock.getCode(), kline);
+            interpreter.eval(formulaCode, 3);
+
+            ZemNumberArray dataArray = ZemNumberArrayUtil.getNumArray(interpreter.getVariable(variableName.trim(), null));
+            ZemNumberArray dateArray = ZemNumberArrayUtil.getNumArray(interpreter.getVariable("date", null));
+            if (dataArray == null || dateArray == null || dataArray.size() == 0 || dateArray.size() == 0)
+            {
+                return null;
+            }
+
+            int lastIndex = Math.min(dataArray.size(), dateArray.size()) - 1;
+            int tradeDate = dateArray.get(lastIndex).intValue();
+            if (tradeDate != targetTradeDate.intValue())
+            {
+                return null;
+            }
+            return Double.valueOf(dataArray.get(lastIndex).doubleValue());
+        }
+        catch (Exception ex)
+        {
+            log.error("Formula variable evaluation failed, variable={}, stockCode={}", variableName, stock.getCode(), ex);
+            throw new BusinessException("formula variable evaluation failed: " + variableName, ex);
+        }
+    }
+
     private Double resolveSelectionPrice(List<StockDailyKlineRow> rows, int tradeDate)
     {
         for (int i = rows.size() - 1; i >= 0; i--)

@@ -5,15 +5,15 @@ import com.stockadmin.selection.config.SelectionProperties;
 import com.stockadmin.selection.domain.FormulaEvaluationResult;
 import com.stockadmin.selection.domain.Stock60MinKlineRow;
 import com.stockadmin.selection.domain.Stock60MinPoolEntry;
-import com.stockadmin.selection.domain.Stock60MinQuoteSnapshot;
 import com.stockadmin.selection.domain.Stock60MinSelectionContext;
 import com.stockadmin.selection.domain.StockFormulaDefinition;
 import com.stockadmin.selection.domain.StockInfo;
+import com.stockadmin.selection.dto.StockKlineCachePrepareResponse;
 import com.stockadmin.selection.dto.StockSelectionHitItem;
 import com.stockadmin.selection.dto.StockSelectionRequest;
 import com.stockadmin.selection.dto.StockSelectionResponse;
+import com.stockadmin.selection.service.cache.KlineBinaryCacheService;
 import com.stockadmin.selection.service.engine.Stock60MinCompletenessService;
-import com.stockadmin.selection.service.engine.Stock60MinQuoteMergeService;
 import com.stockadmin.selection.service.engine.StockFormulaEngineService;
 import com.stockadmin.selection.service.query.Stock60MinDailyKlineQueryService;
 import com.stockadmin.selection.service.query.Stock60MinPoolQueryService;
@@ -37,27 +37,27 @@ public class Stock60MinSelectionService
     private final Stock60MinPoolQueryService stock60MinPoolQueryService;
     private final Stock60MinDailyKlineQueryService stock60MinDailyKlineQueryService;
     private final Stock60MinQuoteQueryService stock60MinQuoteQueryService;
-    private final Stock60MinQuoteMergeService stock60MinQuoteMergeService;
     private final Stock60MinCompletenessService stock60MinCompletenessService;
     private final StockFormulaEngineService stockFormulaEngineService;
+    private final KlineBinaryCacheService klineBinaryCacheService;
 
     public Stock60MinSelectionService(SelectionProperties selectionProperties,
                                       StockFormulaQueryService stockFormulaQueryService,
                                       Stock60MinPoolQueryService stock60MinPoolQueryService,
                                       Stock60MinDailyKlineQueryService stock60MinDailyKlineQueryService,
                                       Stock60MinQuoteQueryService stock60MinQuoteQueryService,
-                                      Stock60MinQuoteMergeService stock60MinQuoteMergeService,
                                       Stock60MinCompletenessService stock60MinCompletenessService,
-                                      StockFormulaEngineService stockFormulaEngineService)
+                                      StockFormulaEngineService stockFormulaEngineService,
+                                      KlineBinaryCacheService klineBinaryCacheService)
     {
         this.selectionProperties = selectionProperties;
         this.stockFormulaQueryService = stockFormulaQueryService;
         this.stock60MinPoolQueryService = stock60MinPoolQueryService;
         this.stock60MinDailyKlineQueryService = stock60MinDailyKlineQueryService;
         this.stock60MinQuoteQueryService = stock60MinQuoteQueryService;
-        this.stock60MinQuoteMergeService = stock60MinQuoteMergeService;
         this.stock60MinCompletenessService = stock60MinCompletenessService;
         this.stockFormulaEngineService = stockFormulaEngineService;
+        this.klineBinaryCacheService = klineBinaryCacheService;
     }
 
     public StockSelectionResponse runSelection(StockSelectionRequest request)
@@ -80,27 +80,18 @@ public class Stock60MinSelectionService
             return buildResponse(formula.getName(), targetTradeDate, Collections.<StockSelectionHitItem>emptyList(), request.getLimit());
         }
 
-        List<String> stockCodes = new ArrayList<String>(stocks.size());
-        for (StockInfo stock : stocks)
-        {
-            stockCodes.add(stock.getCode());
-        }
-
-        List<Stock60MinKlineRow> historyRows = stock60MinDailyKlineQueryService.queryByStockCodesAndTradeDate(stockCodes, targetTradeDate);
-        Stock60MinQuoteSnapshot quoteSnapshot = stock60MinQuoteQueryService.querySnapshot(stockCodes, targetTradeDate);
-        Map<String, List<Stock60MinKlineRow>> historyRowsByStock = groupRowsByStock(historyRows);
+        ensureSixtyMinCache(targetTradeDate);
         Map<String, List<Stock60MinKlineRow>> mergedRowsByStock = new HashMap<String, List<Stock60MinKlineRow>>();
         for (StockInfo stock : stocks)
         {
-            List<Stock60MinKlineRow> rows = historyRowsByStock.get(stock.getCode());
+            List<Stock60MinKlineRow> rows = klineBinaryCacheService.readSixtyMinRows(stock.getCode());
             if (rows == null || rows.isEmpty())
             {
                 continue;
             }
-            List<Stock60MinKlineRow> mergedRows = stock60MinQuoteMergeService.merge(stock, rows, quoteSnapshot);
-            if (!mergedRows.isEmpty())
+            if (!rows.isEmpty())
             {
-                mergedRowsByStock.put(stock.getCode(), mergedRows);
+                mergedRowsByStock.put(stock.getCode(), rows);
             }
         }
 
@@ -133,6 +124,11 @@ public class Stock60MinSelectionService
         return buildResponse(formula.getName(), targetTradeDate, hits, request.getLimit());
     }
 
+    public StockKlineCachePrepareResponse prepareSixtyMinCache(Integer tradeDate)
+    {
+        return klineBinaryCacheService.prepareSixtyMin(tradeDate);
+    }
+
     private void validateRequest(StockSelectionRequest request)
     {
         if (request == null)
@@ -163,24 +159,12 @@ public class Stock60MinSelectionService
         return Integer.valueOf(resolved);
     }
 
-    private Map<String, List<Stock60MinKlineRow>> groupRowsByStock(List<Stock60MinKlineRow> rows)
+    private void ensureSixtyMinCache(Integer tradeDate)
     {
-        Map<String, List<Stock60MinKlineRow>> rowsByStock = new HashMap<String, List<Stock60MinKlineRow>>();
-        for (Stock60MinKlineRow row : rows)
+        if (!klineBinaryCacheService.sixtyMinCacheExists())
         {
-            if (row == null || !hasText(row.getStockCode()))
-            {
-                continue;
-            }
-            List<Stock60MinKlineRow> stockRows = rowsByStock.get(row.getStockCode());
-            if (stockRows == null)
-            {
-                stockRows = new ArrayList<Stock60MinKlineRow>();
-                rowsByStock.put(row.getStockCode(), stockRows);
-            }
-            stockRows.add(row);
+            klineBinaryCacheService.prepareSixtyMin(tradeDate);
         }
-        return rowsByStock;
     }
 
     private StockSelectionHitItem toHitItem(StockInfo stock, FormulaEvaluationResult evaluationResult)

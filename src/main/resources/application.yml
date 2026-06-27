@@ -33,3 +33,4 @@ stock-admin:
       url: ${STOCK_ADMIN_QUOTE_60_DB_URL:jdbc:sqlite:/root/data/stock_quote_60_cnfin.db}
   selection:
     default-limit: 100
+    kline-cache-dir: ${STOCK_ADMIN_KLINE_CACHE_DIR:runtime/kline-cache}

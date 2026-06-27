@@ -7,11 +7,15 @@ import com.stockadmin.selection.domain.RealtimeQuoteSnapshot;
 import com.stockadmin.selection.domain.StockDailyKlineRow;
 import com.stockadmin.selection.domain.StockFormulaDefinition;
 import com.stockadmin.selection.domain.StockInfo;
+import com.stockadmin.selection.dto.StockKlineCachePrepareResponse;
 import com.stockadmin.selection.dto.StockSelectionHitItem;
+import com.stockadmin.selection.dto.StockNmEvaluateItem;
+import com.stockadmin.selection.dto.StockNmEvaluateRequest;
+import com.stockadmin.selection.dto.StockNmEvaluateResponse;
 import com.stockadmin.selection.dto.StockSelectionRequest;
 import com.stockadmin.selection.dto.StockSelectionResponse;
 import com.stockadmin.selection.service.engine.StockFormulaEngineService;
-import com.stockadmin.selection.service.engine.StockDailyQuoteMergeService;
+import com.stockadmin.selection.service.cache.KlineBinaryCacheService;
 import com.stockadmin.selection.service.query.StockDailyKlineQueryService;
 import com.stockadmin.selection.service.query.StockFormulaQueryService;
 import com.stockadmin.selection.service.query.StockPoolQueryService;
@@ -22,9 +26,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class StockSelectionService
@@ -34,24 +36,24 @@ public class StockSelectionService
     private final StockPoolQueryService stockPoolQueryService;
     private final StockDailyKlineQueryService stockDailyKlineQueryService;
     private final StockSelectionQuoteQueryService stockSelectionQuoteQueryService;
-    private final StockDailyQuoteMergeService stockDailyQuoteMergeService;
     private final StockFormulaEngineService stockFormulaEngineService;
+    private final KlineBinaryCacheService klineBinaryCacheService;
 
     public StockSelectionService(SelectionProperties selectionProperties,
                                  StockFormulaQueryService stockFormulaQueryService,
                                  StockPoolQueryService stockPoolQueryService,
                                  StockDailyKlineQueryService stockDailyKlineQueryService,
                                  StockSelectionQuoteQueryService stockSelectionQuoteQueryService,
-                                 StockDailyQuoteMergeService stockDailyQuoteMergeService,
-                                 StockFormulaEngineService stockFormulaEngineService)
+                                 StockFormulaEngineService stockFormulaEngineService,
+                                 KlineBinaryCacheService klineBinaryCacheService)
     {
         this.selectionProperties = selectionProperties;
         this.stockFormulaQueryService = stockFormulaQueryService;
         this.stockPoolQueryService = stockPoolQueryService;
         this.stockDailyKlineQueryService = stockDailyKlineQueryService;
         this.stockSelectionQuoteQueryService = stockSelectionQuoteQueryService;
-        this.stockDailyQuoteMergeService = stockDailyQuoteMergeService;
         this.stockFormulaEngineService = stockFormulaEngineService;
+        this.klineBinaryCacheService = klineBinaryCacheService;
     }
 
     public StockSelectionResponse runDailySelection(StockSelectionRequest request)
@@ -73,26 +75,17 @@ public class StockSelectionService
             return buildResponse(formula.getName(), targetTradeDate, Collections.<StockSelectionHitItem>emptyList(), request.getLimit());
         }
 
-        List<String> stockCodes = new ArrayList<String>(stocks.size());
-        for (StockInfo stock : stocks)
-        {
-            stockCodes.add(stock.getCode());
-        }
-
-        List<StockDailyKlineRow> allRows = stockDailyKlineQueryService.queryByStockCodesAndTradeDate(stockCodes, targetTradeDate);
-        Map<String, List<StockDailyKlineRow>> rowsByStock = groupRowsByStock(allRows);
+        ensureDailyCache(targetTradeDate);
         List<StockSelectionHitItem> hits = new ArrayList<StockSelectionHitItem>();
-
         for (StockInfo stock : stocks)
         {
-            List<StockDailyKlineRow> rows = rowsByStock.get(stock.getCode());
+            List<StockDailyKlineRow> rows = klineBinaryCacheService.readDailyRows(stock.getCode());
             if (rows == null || rows.isEmpty())
             {
                 continue;
             }
 
-            List<StockDailyKlineRow> mergedRows = stockDailyQuoteMergeService.merge(stock, rows, quoteSnapshot);
-            FormulaEvaluationResult evaluationResult = stockFormulaEngineService.evaluate(formula, stock, mergedRows, targetTradeDate);
+            FormulaEvaluationResult evaluationResult = stockFormulaEngineService.evaluate(formula, stock, rows, targetTradeDate);
             if (evaluationResult == null)
             {
                 continue;
@@ -110,6 +103,52 @@ public class StockSelectionService
         });
 
         return buildResponse(formula.getName(), targetTradeDate, hits, request.getLimit());
+    }
+
+    public StockNmEvaluateResponse evaluateNm(StockNmEvaluateRequest request)
+    {
+        if (request == null)
+        {
+            throw new BusinessException("request body is required");
+        }
+        RealtimeQuoteSnapshot quoteSnapshot = stockSelectionQuoteQueryService.queryRealtimeQuoteSnapshot();
+        Integer latestDailyTradeDate = stockDailyKlineQueryService.findLatestTradeDate();
+        Integer targetTradeDate = resolveTargetTradeDate(request.getTradeDate(), latestDailyTradeDate, quoteSnapshot);
+        List<StockInfo> stocks = stockPoolQueryService.queryStocks(request.getStockCodes());
+        ensureDailyCache(targetTradeDate);
+
+        List<StockNmEvaluateItem> items = new ArrayList<StockNmEvaluateItem>();
+        for (StockInfo stock : stocks)
+        {
+            List<StockDailyKlineRow> rows = klineBinaryCacheService.readDailyRows(stock.getCode());
+            if (rows == null || rows.isEmpty())
+            {
+                continue;
+            }
+            Double nm = stockFormulaEngineService.evaluateDailyVariable(request.getFormulaCode(), "NM", stock, rows, targetTradeDate);
+            if (nm == null)
+            {
+                continue;
+            }
+            StockNmEvaluateItem item = new StockNmEvaluateItem();
+            item.setStockCode(stock.getCode());
+            item.setStockName(stock.getStockName());
+            item.setMarketCode(stock.getMarketCode());
+            item.setTradeDate(targetTradeDate);
+            item.setNm(BigDecimal.valueOf(nm.doubleValue()));
+            item.setPrice(resolveLatestClose(rows));
+            items.add(item);
+        }
+        StockNmEvaluateResponse response = new StockNmEvaluateResponse();
+        response.setTradeDate(targetTradeDate);
+        response.setTotal(Integer.valueOf(items.size()));
+        response.setItems(items);
+        return response;
+    }
+
+    public StockKlineCachePrepareResponse prepareDailyCache(Integer tradeDate)
+    {
+        return klineBinaryCacheService.prepareDaily(tradeDate);
     }
 
     private void validateRequest(StockSelectionRequest request)
@@ -144,24 +183,25 @@ public class StockSelectionService
         return resolved;
     }
 
-    private Map<String, List<StockDailyKlineRow>> groupRowsByStock(List<StockDailyKlineRow> rows)
+    private void ensureDailyCache(Integer tradeDate)
     {
-        Map<String, List<StockDailyKlineRow>> rowsByStock = new HashMap<String, List<StockDailyKlineRow>>();
-        for (StockDailyKlineRow row : rows)
+        if (!klineBinaryCacheService.dailyCacheExists())
         {
-            if (row == null || !hasText(row.getStockCode()))
-            {
-                continue;
-            }
-            List<StockDailyKlineRow> stockRows = rowsByStock.get(row.getStockCode());
-            if (stockRows == null)
-            {
-                stockRows = new ArrayList<StockDailyKlineRow>();
-                rowsByStock.put(row.getStockCode(), stockRows);
-            }
-            stockRows.add(row);
+            klineBinaryCacheService.prepareDaily(tradeDate);
         }
-        return rowsByStock;
+    }
+
+    private BigDecimal resolveLatestClose(List<StockDailyKlineRow> rows)
+    {
+        for (int i = rows.size() - 1; i >= 0; i--)
+        {
+            StockDailyKlineRow row = rows.get(i);
+            if (row != null && row.getClose() != null)
+            {
+                return BigDecimal.valueOf(row.getClose().doubleValue());
+            }
+        }
+        return null;
     }
 
     private StockSelectionHitItem toHitItem(StockInfo stock, FormulaEvaluationResult evaluationResult)
