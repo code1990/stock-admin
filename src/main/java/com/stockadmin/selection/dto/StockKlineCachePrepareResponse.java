@@ -6,6 +6,8 @@ public class StockKlineCachePrepareResponse
     private Integer tradeDate;
     private Integer stockCount;
     private String filePath;
+    private Long fileSizeBytes;
+    private Long elapsedMs;
     private Boolean includeQuote;
 
     public String getPeriod()
@@ -46,6 +48,26 @@ public class StockKlineCachePrepareResponse
     public void setFilePath(String filePath)
     {
         this.filePath = filePath;
+    }
+
+    public Long getFileSizeBytes()
+    {
+        return fileSizeBytes;
+    }
+
+    public void setFileSizeBytes(Long fileSizeBytes)
+    {
+        this.fileSizeBytes = fileSizeBytes;
+    }
+
+    public Long getElapsedMs()
+    {
+        return elapsedMs;
+    }
+
+    public void setElapsedMs(Long elapsedMs)
+    {
+        this.elapsedMs = elapsedMs;
     }
 
     public Boolean getIncludeQuote()

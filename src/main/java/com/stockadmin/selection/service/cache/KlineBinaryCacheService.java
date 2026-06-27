@@ -97,17 +97,20 @@ public class KlineBinaryCacheService
 
     public StockKlineCachePrepareResponse prepareDaily(Integer requestedTradeDate)
     {
+        long startMillis = System.currentTimeMillis();
         RealtimeQuoteSnapshot quoteSnapshot = stockSelectionQuoteQueryService.queryRealtimeQuoteSnapshot();
         Integer latestDailyTradeDate = stockDailyKlineQueryService.findLatestTradeDate();
         Integer targetTradeDate = resolveTargetTradeDate(requestedTradeDate, latestDailyTradeDate, quoteSnapshot == null ? null : Integer.valueOf(quoteSnapshot.getLatestTradeDate()), "t_stock_daily_240 or t_stock_quote");
         boolean includeQuote = shouldIncludeIntradayQuote() && quoteSnapshot != null && quoteSnapshot.getLatestTradeDate() >= targetTradeDate.intValue();
         List<StockInfo> stocks = stockPoolQueryService.queryStocks(null);
+        Path filePath = dailyCachePath(targetTradeDate);
         writeDailyCache(stocks, targetTradeDate, includeQuote ? quoteSnapshot : null);
-        return buildResponse(PERIOD_240, targetTradeDate, stocks.size(), dailyCachePath(targetTradeDate), includeQuote);
+        return buildResponse(PERIOD_240, targetTradeDate, stocks.size(), filePath, includeQuote, startMillis);
     }
 
     public StockKlineCachePrepareResponse prepareSixtyMin(Integer requestedTradeDate)
     {
+        long startMillis = System.currentTimeMillis();
         List<Stock60MinPoolEntry> poolEntries = stock60MinPoolQueryService.queryPoolEntries("", null);
         List<StockInfo> stocks = stock60MinPoolQueryService.toStockInfos(poolEntries);
         Integer latestDailyTradeDate = stock60MinDailyKlineQueryService.findLatestTradeDate();
@@ -116,8 +119,9 @@ public class KlineBinaryCacheService
         List<String> stockCodes = toStockCodes(stocks);
         boolean includeQuote = shouldIncludeIntradayQuote() && latestQuoteTradeDate != null && latestQuoteTradeDate.intValue() >= targetTradeDate.intValue();
         Stock60MinQuoteSnapshot quoteSnapshot = includeQuote ? stock60MinQuoteQueryService.querySnapshot(stockCodes, targetTradeDate) : null;
+        Path filePath = sixtyMinCachePath(targetTradeDate);
         writeSixtyMinCache(stocks, targetTradeDate, quoteSnapshot);
-        return buildResponse(PERIOD_60, targetTradeDate, stocks.size(), sixtyMinCachePath(targetTradeDate), includeQuote);
+        return buildResponse(PERIOD_60, targetTradeDate, stocks.size(), filePath, includeQuote, startMillis);
     }
 
     public List<StockDailyKlineRow> readDailyRows(String stockCode, Integer tradeDate)
@@ -193,6 +197,10 @@ public class KlineBinaryCacheService
             {
                 dataOut.close();
             }
+            if (entries.isEmpty())
+            {
+                throw new BusinessException("no 240min kline rows found for cache tradeDate: " + targetTradeDate);
+            }
             writeFinalCache(PERIOD_240, targetTradeDate, entries, dataPath, dailyCachePath(targetTradeDate));
         }
         catch (IOException ex)
@@ -239,6 +247,10 @@ public class KlineBinaryCacheService
             finally
             {
                 dataOut.close();
+            }
+            if (entries.isEmpty())
+            {
+                throw new BusinessException("no 60min kline rows found for cache tradeDate: " + targetTradeDate);
             }
             writeFinalCache(PERIOD_60, targetTradeDate, entries, dataPath, sixtyMinCachePath(targetTradeDate));
         }
@@ -570,15 +582,34 @@ public class KlineBinaryCacheService
         return !time.isBefore(LocalTime.of(9, 25)) && !time.isAfter(LocalTime.of(15, 5));
     }
 
-    private StockKlineCachePrepareResponse buildResponse(String period, Integer tradeDate, int stockCount, Path filePath, boolean includeQuote)
+    private StockKlineCachePrepareResponse buildResponse(String period,
+                                                         Integer tradeDate,
+                                                         int stockCount,
+                                                         Path filePath,
+                                                         boolean includeQuote,
+                                                         long startMillis)
     {
         StockKlineCachePrepareResponse response = new StockKlineCachePrepareResponse();
         response.setPeriod(period);
         response.setTradeDate(tradeDate);
         response.setStockCount(Integer.valueOf(stockCount));
         response.setFilePath(filePath.toAbsolutePath().toString());
+        response.setFileSizeBytes(Long.valueOf(fileSize(filePath)));
+        response.setElapsedMs(Long.valueOf(System.currentTimeMillis() - startMillis));
         response.setIncludeQuote(Boolean.valueOf(includeQuote));
         return response;
+    }
+
+    private long fileSize(Path filePath)
+    {
+        try
+        {
+            return Files.isRegularFile(filePath) ? Files.size(filePath) : 0L;
+        }
+        catch (IOException ex)
+        {
+            throw new BusinessException("read kline cache file size failed: " + filePath, ex);
+        }
     }
 
     private List<String> toStockCodes(List<StockInfo> stocks)
