@@ -125,9 +125,27 @@ public class KlineBinaryCacheService
         return readRows(stockCode, dailyCachePath(), true).dailyRows;
     }
 
+    public List<StockDailyKlineRow> loadDailyRows(String stockCode, Integer tradeDate)
+    {
+        if (!dailyCacheExists())
+        {
+            prepareDaily(tradeDate);
+        }
+        return readDailyRows(stockCode);
+    }
+
     public List<Stock60MinKlineRow> readSixtyMinRows(String stockCode)
     {
         return readRows(stockCode, sixtyMinCachePath(), false).sixtyMinRows;
+    }
+
+    public List<Stock60MinKlineRow> loadSixtyMinRows(String stockCode, Integer tradeDate)
+    {
+        if (!sixtyMinCacheExists())
+        {
+            prepareSixtyMin(tradeDate);
+        }
+        return readSixtyMinRows(stockCode);
     }
 
     public Integer readDailyTradeDate()

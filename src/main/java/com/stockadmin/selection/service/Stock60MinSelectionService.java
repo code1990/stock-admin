@@ -84,11 +84,10 @@ public class Stock60MinSelectionService
             return buildResponse(formula.getName(), targetTradeDate, Collections.<StockSelectionHitItem>emptyList(), request.getLimit());
         }
 
-        ensureSixtyMinCache(targetTradeDate);
         Map<String, List<Stock60MinKlineRow>> mergedRowsByStock = new HashMap<String, List<Stock60MinKlineRow>>();
         for (StockInfo stock : stocks)
         {
-            List<Stock60MinKlineRow> rows = klineBinaryCacheService.readSixtyMinRows(stock.getCode());
+            List<Stock60MinKlineRow> rows = klineBinaryCacheService.loadSixtyMinRows(stock.getCode(), targetTradeDate);
             if (rows == null || rows.isEmpty())
             {
                 continue;
@@ -144,12 +143,11 @@ public class Stock60MinSelectionService
         Integer targetTradeDate = resolveTargetTradeDate(request.getTradeDate(), latestDailyTradeDate, latestQuoteTradeDate);
         List<Stock60MinPoolEntry> poolEntries = stock60MinPoolQueryService.queryPoolEntries("", request.getStockCodes());
         List<StockInfo> stocks = stock60MinPoolQueryService.toStockInfos(poolEntries);
-        ensureSixtyMinCache(targetTradeDate);
 
         List<StockNmEvaluateItem> items = new ArrayList<StockNmEvaluateItem>();
         for (StockInfo stock : stocks)
         {
-            List<Stock60MinKlineRow> rows = klineBinaryCacheService.readSixtyMinRows(stock.getCode());
+            List<Stock60MinKlineRow> rows = klineBinaryCacheService.loadSixtyMinRows(stock.getCode(), targetTradeDate);
             if (rows == null || rows.isEmpty())
             {
                 continue;
@@ -212,14 +210,6 @@ public class Stock60MinSelectionService
             throw new BusinessException("no available trade date found from t_stock_daily_60 or t_stock_quote_60");
         }
         return Integer.valueOf(resolved);
-    }
-
-    private void ensureSixtyMinCache(Integer tradeDate)
-    {
-        if (!klineBinaryCacheService.sixtyMinCacheExists())
-        {
-            klineBinaryCacheService.prepareSixtyMin(tradeDate);
-        }
     }
 
     private Stock60MinKlineRow resolveLatestTargetRow(List<Stock60MinKlineRow> rows, Integer targetTradeDate)

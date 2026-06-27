@@ -7,7 +7,9 @@ PID_FILE="${BASE_DIR}/runtime/${APP_NAME}.pid"
 UNIT_NAME="${APP_NAME}.service"
 
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet "${UNIT_NAME}"; then
-  systemctl stop "${UNIT_NAME}"
+  if ! timeout 20 systemctl stop "${UNIT_NAME}"; then
+    systemctl kill -s KILL "${UNIT_NAME}" >/dev/null 2>&1 || true
+  fi
   systemctl reset-failed "${UNIT_NAME}" >/dev/null 2>&1 || true
   rm -f "${PID_FILE}"
   echo "stopped ${UNIT_NAME}"

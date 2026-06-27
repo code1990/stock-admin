@@ -75,11 +75,10 @@ public class StockSelectionService
             return buildResponse(formula.getName(), targetTradeDate, Collections.<StockSelectionHitItem>emptyList(), request.getLimit());
         }
 
-        ensureDailyCache(targetTradeDate);
         List<StockSelectionHitItem> hits = new ArrayList<StockSelectionHitItem>();
         for (StockInfo stock : stocks)
         {
-            List<StockDailyKlineRow> rows = klineBinaryCacheService.readDailyRows(stock.getCode());
+            List<StockDailyKlineRow> rows = klineBinaryCacheService.loadDailyRows(stock.getCode(), targetTradeDate);
             if (rows == null || rows.isEmpty())
             {
                 continue;
@@ -115,12 +114,11 @@ public class StockSelectionService
         Integer latestDailyTradeDate = stockDailyKlineQueryService.findLatestTradeDate();
         Integer targetTradeDate = resolveTargetTradeDate(request.getTradeDate(), latestDailyTradeDate, quoteSnapshot);
         List<StockInfo> stocks = stockPoolQueryService.queryStocks(request.getStockCodes());
-        ensureDailyCache(targetTradeDate);
 
         List<StockNmEvaluateItem> items = new ArrayList<StockNmEvaluateItem>();
         for (StockInfo stock : stocks)
         {
-            List<StockDailyKlineRow> rows = klineBinaryCacheService.readDailyRows(stock.getCode());
+            List<StockDailyKlineRow> rows = klineBinaryCacheService.loadDailyRows(stock.getCode(), targetTradeDate);
             if (rows == null || rows.isEmpty())
             {
                 continue;
@@ -182,14 +180,6 @@ public class StockSelectionService
             throw new BusinessException("no available trade date found from t_stock_daily_240 or t_stock_quote");
         }
         return resolved;
-    }
-
-    private void ensureDailyCache(Integer tradeDate)
-    {
-        if (!klineBinaryCacheService.dailyCacheExists())
-        {
-            klineBinaryCacheService.prepareDaily(tradeDate);
-        }
     }
 
     private BigDecimal resolveLatestClose(List<StockDailyKlineRow> rows)
