@@ -2,7 +2,17 @@
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-PID_FILE="${BASE_DIR}/runtime/stock-admin.pid"
+APP_NAME="stock-admin"
+PID_FILE="${BASE_DIR}/runtime/${APP_NAME}.pid"
+UNIT_NAME="${APP_NAME}.service"
+
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet "${UNIT_NAME}"; then
+  systemctl stop "${UNIT_NAME}"
+  systemctl reset-failed "${UNIT_NAME}" >/dev/null 2>&1 || true
+  rm -f "${PID_FILE}"
+  echo "stopped ${UNIT_NAME}"
+  exit 0
+fi
 
 if [ ! -f "${PID_FILE}" ]; then
   echo "pid file not found"
