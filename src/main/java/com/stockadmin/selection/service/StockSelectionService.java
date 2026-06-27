@@ -140,6 +140,7 @@ public class StockSelectionService
             items.add(item);
         }
         StockNmEvaluateResponse response = new StockNmEvaluateResponse();
+        response.setPeriod(SelectionPeriod.PERIOD_240);
         response.setTradeDate(targetTradeDate);
         response.setTotal(Integer.valueOf(items.size()));
         response.setItems(items);

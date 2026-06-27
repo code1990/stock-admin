@@ -9,6 +9,7 @@ public class StockNmEvaluateRequest
                     + "-(3*SMA(SMA((((C-LLV(L,5))/(HHV(H,5)-LLV(L,5)))*100),5,1),3.2,1)));";
 
     private String formulaCode;
+    private String period;
     private Integer tradeDate;
     private List<String> stockCodes;
 
@@ -24,6 +25,16 @@ public class StockNmEvaluateRequest
     public void setFormulaCode(String formulaCode)
     {
         this.formulaCode = formulaCode;
+    }
+
+    public String getPeriod()
+    {
+        return period;
+    }
+
+    public void setPeriod(String period)
+    {
+        this.period = period;
     }
 
     public Integer getTradeDate()

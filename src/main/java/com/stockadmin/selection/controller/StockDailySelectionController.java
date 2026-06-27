@@ -6,6 +6,8 @@ import com.stockadmin.selection.dto.StockNmEvaluateRequest;
 import com.stockadmin.selection.dto.StockNmEvaluateResponse;
 import com.stockadmin.selection.dto.StockSelectionRequest;
 import com.stockadmin.selection.dto.StockSelectionResponse;
+import com.stockadmin.selection.service.SelectionPeriod;
+import com.stockadmin.selection.service.Stock60MinSelectionService;
 import com.stockadmin.selection.service.StockSelectionService;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.validation.annotation.Validated;
@@ -22,10 +24,13 @@ import javax.validation.Valid;
 public class StockDailySelectionController
 {
     private final StockSelectionService stockSelectionService;
+    private final Stock60MinSelectionService stock60MinSelectionService;
 
-    public StockDailySelectionController(StockSelectionService stockSelectionService)
+    public StockDailySelectionController(StockSelectionService stockSelectionService,
+                                         Stock60MinSelectionService stock60MinSelectionService)
     {
         this.stockSelectionService = stockSelectionService;
+        this.stock60MinSelectionService = stock60MinSelectionService;
     }
 
     @PostMapping("/run")
@@ -37,12 +42,21 @@ public class StockDailySelectionController
     @PostMapping("/evaluate")
     public ApiResponse<StockNmEvaluateResponse> evaluate(@Valid @RequestBody StockNmEvaluateRequest request)
     {
+        if (SelectionPeriod.isSixtyMin(request == null ? null : request.getPeriod()))
+        {
+            return ApiResponse.success(stock60MinSelectionService.evaluateNm(request));
+        }
         return ApiResponse.success(stockSelectionService.evaluateNm(request));
     }
 
     @PostMapping("/kline-cache/prepare")
-    public ApiResponse<StockKlineCachePrepareResponse> prepareKlineCache(@RequestParam(value = "tradeDate", required = false) Integer tradeDate)
+    public ApiResponse<StockKlineCachePrepareResponse> prepareKlineCache(@RequestParam(value = "tradeDate", required = false) Integer tradeDate,
+                                                                         @RequestParam(value = "period", required = false) String period)
     {
+        if (SelectionPeriod.isSixtyMin(period))
+        {
+            return ApiResponse.success(stock60MinSelectionService.prepareSixtyMinCache(tradeDate));
+        }
         return ApiResponse.success(stockSelectionService.prepareDailyCache(tradeDate));
     }
 }

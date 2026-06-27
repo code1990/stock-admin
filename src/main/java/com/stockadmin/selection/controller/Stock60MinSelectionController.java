@@ -2,6 +2,8 @@ package com.stockadmin.selection.controller;
 
 import com.stockadmin.common.ApiResponse;
 import com.stockadmin.selection.dto.StockKlineCachePrepareResponse;
+import com.stockadmin.selection.dto.StockNmEvaluateRequest;
+import com.stockadmin.selection.dto.StockNmEvaluateResponse;
 import com.stockadmin.selection.dto.StockSelectionRequest;
 import com.stockadmin.selection.dto.StockSelectionResponse;
 import com.stockadmin.selection.service.Stock60MinSelectionService;
@@ -30,6 +32,12 @@ public class Stock60MinSelectionController
     public ApiResponse<StockSelectionResponse> run(@Valid @RequestBody StockSelectionRequest request)
     {
         return ApiResponse.success(stock60MinSelectionService.runSelection(request));
+    }
+
+    @PostMapping("/evaluate")
+    public ApiResponse<StockNmEvaluateResponse> evaluate(@Valid @RequestBody StockNmEvaluateRequest request)
+    {
+        return ApiResponse.success(stock60MinSelectionService.evaluateNm(request));
     }
 
     @PostMapping("/kline-cache/prepare")

@@ -8,6 +8,8 @@ public class StockNmEvaluateItem
     private String stockName;
     private String marketCode;
     private Integer tradeDate;
+    private Long slotTradeDate;
+    private Integer slotIndex;
     private BigDecimal price;
     private BigDecimal nm;
 
@@ -49,6 +51,26 @@ public class StockNmEvaluateItem
     public void setTradeDate(Integer tradeDate)
     {
         this.tradeDate = tradeDate;
+    }
+
+    public Long getSlotTradeDate()
+    {
+        return slotTradeDate;
+    }
+
+    public void setSlotTradeDate(Long slotTradeDate)
+    {
+        this.slotTradeDate = slotTradeDate;
+    }
+
+    public Integer getSlotIndex()
+    {
+        return slotIndex;
+    }
+
+    public void setSlotIndex(Integer slotIndex)
+    {
+        this.slotIndex = slotIndex;
     }
 
     public BigDecimal getPrice()

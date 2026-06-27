@@ -58,7 +58,7 @@ chmod +x bin/*.sh
 
 ```bash
 java -jar target/aidex-admin.jar \
-  --server.port=18080 \
+  --server.port=8888 \
   --aidex.datasource.primary=sqlite \
   --aidex.datasource.sources.master.enabled=false
 ```

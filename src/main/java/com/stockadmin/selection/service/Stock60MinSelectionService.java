@@ -9,11 +9,15 @@ import com.stockadmin.selection.domain.Stock60MinSelectionContext;
 import com.stockadmin.selection.domain.StockFormulaDefinition;
 import com.stockadmin.selection.domain.StockInfo;
 import com.stockadmin.selection.dto.StockKlineCachePrepareResponse;
+import com.stockadmin.selection.dto.StockNmEvaluateItem;
+import com.stockadmin.selection.dto.StockNmEvaluateRequest;
+import com.stockadmin.selection.dto.StockNmEvaluateResponse;
 import com.stockadmin.selection.dto.StockSelectionHitItem;
 import com.stockadmin.selection.dto.StockSelectionRequest;
 import com.stockadmin.selection.dto.StockSelectionResponse;
 import com.stockadmin.selection.service.cache.KlineBinaryCacheService;
 import com.stockadmin.selection.service.engine.Stock60MinCompletenessService;
+import com.stockadmin.selection.service.engine.Stock60MinSlotSupport;
 import com.stockadmin.selection.service.engine.StockFormulaEngineService;
 import com.stockadmin.selection.service.query.Stock60MinDailyKlineQueryService;
 import com.stockadmin.selection.service.query.Stock60MinPoolQueryService;
@@ -129,6 +133,57 @@ public class Stock60MinSelectionService
         return klineBinaryCacheService.prepareSixtyMin(tradeDate);
     }
 
+    public StockNmEvaluateResponse evaluateNm(StockNmEvaluateRequest request)
+    {
+        if (request == null)
+        {
+            throw new BusinessException("request body is required");
+        }
+        Integer latestDailyTradeDate = stock60MinDailyKlineQueryService.findLatestTradeDate();
+        Integer latestQuoteTradeDate = stock60MinQuoteQueryService.findLatestTradeDate();
+        Integer targetTradeDate = resolveTargetTradeDate(request.getTradeDate(), latestDailyTradeDate, latestQuoteTradeDate);
+        List<Stock60MinPoolEntry> poolEntries = stock60MinPoolQueryService.queryPoolEntries("", request.getStockCodes());
+        List<StockInfo> stocks = stock60MinPoolQueryService.toStockInfos(poolEntries);
+        ensureSixtyMinCache(targetTradeDate);
+
+        List<StockNmEvaluateItem> items = new ArrayList<StockNmEvaluateItem>();
+        for (StockInfo stock : stocks)
+        {
+            List<Stock60MinKlineRow> rows = klineBinaryCacheService.readSixtyMinRows(stock.getCode());
+            if (rows == null || rows.isEmpty())
+            {
+                continue;
+            }
+            Double nm = stockFormulaEngineService.evaluate60MinVariable(request.getFormulaCode(), "NM", stock, rows, targetTradeDate);
+            if (nm == null)
+            {
+                continue;
+            }
+            Stock60MinKlineRow latestRow = resolveLatestTargetRow(rows, targetTradeDate);
+            if (latestRow == null)
+            {
+                continue;
+            }
+            StockNmEvaluateItem item = new StockNmEvaluateItem();
+            item.setStockCode(stock.getCode());
+            item.setStockName(stock.getStockName());
+            item.setMarketCode(stock.getMarketCode());
+            item.setTradeDate(targetTradeDate);
+            item.setSlotTradeDate(latestRow.getTradeDate());
+            item.setSlotIndex(Integer.valueOf(Stock60MinSlotSupport.resolveSlotIndexByTradeDate(latestRow.getTradeDate().longValue())));
+            item.setNm(BigDecimal.valueOf(nm.doubleValue()));
+            item.setPrice(latestRow.getClose() == null ? null : BigDecimal.valueOf(latestRow.getClose().doubleValue()));
+            items.add(item);
+        }
+
+        StockNmEvaluateResponse response = new StockNmEvaluateResponse();
+        response.setPeriod(SelectionPeriod.PERIOD_60);
+        response.setTradeDate(targetTradeDate);
+        response.setTotal(Integer.valueOf(items.size()));
+        response.setItems(items);
+        return response;
+    }
+
     private void validateRequest(StockSelectionRequest request)
     {
         if (request == null)
@@ -165,6 +220,20 @@ public class Stock60MinSelectionService
         {
             klineBinaryCacheService.prepareSixtyMin(tradeDate);
         }
+    }
+
+    private Stock60MinKlineRow resolveLatestTargetRow(List<Stock60MinKlineRow> rows, Integer targetTradeDate)
+    {
+        for (int i = rows.size() - 1; i >= 0; i--)
+        {
+            Stock60MinKlineRow row = rows.get(i);
+            if (row != null && row.getTradeDate() != null
+                    && Stock60MinSlotSupport.toDailyTradeDate(row.getTradeDate().longValue()) == targetTradeDate.intValue())
+            {
+                return row;
+            }
+        }
+        return null;
     }
 
     private StockSelectionHitItem toHitItem(StockInfo stock, FormulaEvaluationResult evaluationResult)

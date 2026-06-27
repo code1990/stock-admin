@@ -4,9 +4,20 @@ import java.util.List;
 
 public class StockNmEvaluateResponse
 {
+    private String period;
     private Integer tradeDate;
     private Integer total;
     private List<StockNmEvaluateItem> items;
+
+    public String getPeriod()
+    {
+        return period;
+    }
+
+    public void setPeriod(String period)
+    {
+        this.period = period;
+    }
 
     public Integer getTradeDate()
     {
