@@ -11,4 +11,10 @@ public class RootController
     {
         return "helloworld";
     }
+
+    @GetMapping("/health")
+    public String health()
+    {
+        return "helloworld";
+    }
 }
