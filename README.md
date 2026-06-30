@@ -1,3 +1,38 @@
+# stock-admin
+
+`stock-admin` 是股票选股 HTTP 服务，供 `stock_cron` 调用。
+
+环境配置：
+
+- Linux 默认主库：`jdbc:sqlite:/root/data/stock_stat.db`
+- 60min 盘中快照库：`jdbc:sqlite:/root/data/stock_quote_60_cnfin.db`
+- 主库环境变量：`STOCK_ADMIN_DB_URL`
+- 60min 快照库环境变量：`STOCK_ADMIN_QUOTE_60_DB_URL`
+- K 线缓存目录：`STOCK_ADMIN_KLINE_CACHE_DIR`
+- 启动脚本会优先读取 `stock-admin/.env`；如果不存在，会读取相邻的 `stock_cron/.env`
+- 如果只配置了 `STOCK_STAT_DB_PATH`，`bin/start.sh` 会自动转换为 `STOCK_ADMIN_DB_URL=jdbc:sqlite:${STOCK_STAT_DB_PATH}`
+
+Windows 示例：
+
+```bat
+set STOCK_ADMIN_DB_URL=jdbc:sqlite:.\data\stock_stat.db
+set STOCK_ADMIN_QUOTE_60_DB_URL=jdbc:sqlite:.\data\stock_quote_60_cnfin.db
+bin\start.bat
+```
+
+Linux 示例：
+
+```bash
+cp .env.example .env
+./bin/start.sh
+```
+
+不要在 Linux 服务里使用 `D:\dev\...` 这类 Windows 路径；SQLite 会把它当成当前目录下的普通文件名，生成类似 `D:\dev\stock_stat\stock_stat.db` 的无效文件。
+
+---
+
+以下是原模板说明，保留作生成器参考。
+
 # aidex-admin
 
 `aidex-admin` 是一个单模块 Spring Boot 后端工程模板，专注于后端代码生成，不包含前端生成、不包含系统管理、不包含登录鉴权。

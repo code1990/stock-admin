@@ -12,6 +12,26 @@ cd "${BASE_DIR}"
 
 mkdir -p "${BASE_DIR}/runtime/logs"
 
+load_env_file() {
+  local env_file="$1"
+  if [ -f "${env_file}" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "${env_file}"
+    set +a
+  fi
+}
+
+if [ -f "${BASE_DIR}/.env" ]; then
+  load_env_file "${BASE_DIR}/.env"
+elif [ -f "${BASE_DIR}/../stock_cron/.env" ]; then
+  load_env_file "${BASE_DIR}/../stock_cron/.env"
+fi
+
+if [ -z "${STOCK_ADMIN_DB_URL:-}" ] && [ -n "${STOCK_STAT_DB_PATH:-}" ]; then
+  export STOCK_ADMIN_DB_URL="jdbc:sqlite:${STOCK_STAT_DB_PATH}"
+fi
+
 if [ ! -f "${JAR_PATH}" ]; then
   echo "jar not found: ${JAR_PATH}"
   exit 1
@@ -24,11 +44,18 @@ if command -v systemctl >/dev/null 2>&1 && systemctl list-units >/dev/null 2>&1;
   fi
   systemctl reset-failed "${UNIT_NAME}" >/dev/null 2>&1 || true
   rm -f "${PID_FILE}"
+  SYSTEMD_ENV_ARGS=()
+  for ENV_NAME in STOCK_ADMIN_DB_URL STOCK_ADMIN_DB_USERNAME STOCK_ADMIN_DB_PASSWORD STOCK_ADMIN_QUOTE_60_DB_URL STOCK_ADMIN_KLINE_CACHE_DIR; do
+    if [ -n "${!ENV_NAME:-}" ]; then
+      SYSTEMD_ENV_ARGS+=("--setenv=${ENV_NAME}=${!ENV_NAME}")
+    fi
+  done
   systemd-run \
     --unit="${APP_NAME}" \
     --working-directory="${BASE_DIR}" \
     --property=Restart=on-failure \
     --property=RestartSec=5 \
+    "${SYSTEMD_ENV_ARGS[@]}" \
     /usr/bin/java -jar "${JAR_PATH}" >/dev/null
   echo "${APP_NAME} started as ${UNIT_NAME}"
   exit 0

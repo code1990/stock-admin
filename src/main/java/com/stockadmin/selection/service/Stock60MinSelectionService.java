@@ -5,7 +5,6 @@ import com.stockadmin.selection.config.SelectionProperties;
 import com.stockadmin.selection.domain.FormulaEvaluationResult;
 import com.stockadmin.selection.domain.Stock60MinKlineRow;
 import com.stockadmin.selection.domain.Stock60MinPoolEntry;
-import com.stockadmin.selection.domain.Stock60MinSelectionContext;
 import com.stockadmin.selection.domain.StockFormulaDefinition;
 import com.stockadmin.selection.domain.StockInfo;
 import com.stockadmin.selection.dto.StockNmEvaluateItem;
@@ -28,9 +27,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class Stock60MinSelectionService
@@ -83,7 +80,8 @@ public class Stock60MinSelectionService
             return buildResponse(formula.getName(), targetTradeDate, Collections.<StockSelectionHitItem>emptyList(), request.getLimit());
         }
 
-        Map<String, List<Stock60MinKlineRow>> mergedRowsByStock = new HashMap<String, List<Stock60MinKlineRow>>();
+        int latestSlotIndex = resolveLatestSlotIndex(stocks, targetTradeDate);
+        List<StockSelectionHitItem> hits = new ArrayList<StockSelectionHitItem>();
         for (StockInfo stock : stocks)
         {
             List<Stock60MinKlineRow> rows = klineBinaryCacheService.loadSixtyMinRows(stock.getCode(), targetTradeDate);
@@ -91,18 +89,7 @@ public class Stock60MinSelectionService
             {
                 continue;
             }
-            if (!rows.isEmpty())
-            {
-                mergedRowsByStock.put(stock.getCode(), rows);
-            }
-        }
-
-        Stock60MinSelectionContext selectionContext = stock60MinCompletenessService.resolveSelectionContext(mergedRowsByStock, targetTradeDate);
-        List<StockSelectionHitItem> hits = new ArrayList<StockSelectionHitItem>();
-        for (StockInfo stock : stocks)
-        {
-            List<Stock60MinKlineRow> rows = mergedRowsByStock.get(stock.getCode());
-            if (!stock60MinCompletenessService.hasCompleteSlots(rows, targetTradeDate, selectionContext.getLatestSlotIndex()))
+            if (!stock60MinCompletenessService.hasCompleteSlots(rows, targetTradeDate, Integer.valueOf(latestSlotIndex)))
             {
                 continue;
             }
@@ -174,6 +161,36 @@ public class Stock60MinSelectionService
         response.setTotal(Integer.valueOf(items.size()));
         response.setItems(items);
         return response;
+    }
+
+    private int resolveLatestSlotIndex(List<StockInfo> stocks, Integer targetTradeDate)
+    {
+        int latestSlotIndex = 0;
+        for (StockInfo stock : stocks)
+        {
+            List<Stock60MinKlineRow> rows = klineBinaryCacheService.loadSixtyMinRows(stock.getCode(), targetTradeDate);
+            if (rows == null || rows.isEmpty())
+            {
+                continue;
+            }
+            for (Stock60MinKlineRow row : rows)
+            {
+                if (row == null || row.getTradeDate() == null)
+                {
+                    continue;
+                }
+                if (Stock60MinSlotSupport.toDailyTradeDate(row.getTradeDate().longValue()) != targetTradeDate.intValue())
+                {
+                    continue;
+                }
+                int slotIndex = Stock60MinSlotSupport.resolveSlotIndexByTradeDate(row.getTradeDate().longValue());
+                if (slotIndex > latestSlotIndex)
+                {
+                    latestSlotIndex = slotIndex;
+                }
+            }
+        }
+        return latestSlotIndex;
     }
 
     private void validateRequest(StockSelectionRequest request)

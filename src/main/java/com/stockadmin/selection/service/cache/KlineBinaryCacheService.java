@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class KlineBinaryCacheService
@@ -63,6 +64,7 @@ public class KlineBinaryCacheService
     private final Stock60MinDailyKlineQueryService stock60MinDailyKlineQueryService;
     private final Stock60MinQuoteQueryService stock60MinQuoteQueryService;
     private final Stock60MinQuoteMergeService stock60MinQuoteMergeService;
+    private final Map<String, CacheHeader> headerCache = new ConcurrentHashMap<String, CacheHeader>();
 
     public KlineBinaryCacheService(@Value("${stock-admin.selection.kline-cache-dir:runtime/kline-cache}") String cacheDir,
                                    StockPoolQueryService stockPoolQueryService,
@@ -301,6 +303,7 @@ public class KlineBinaryCacheService
             out.close();
         }
         Files.move(tmpPath, finalPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        headerCache.remove(cacheKey(finalPath));
     }
 
     private byte[] buildHeader(String period, Integer tradeDate, List<CacheEntry> entries, long dataBaseOffset) throws IOException
@@ -359,6 +362,16 @@ public class KlineBinaryCacheService
         {
             throw new BusinessException("kline cache file not found: " + filePath);
         }
+        String cacheKey = cacheKey(filePath);
+        long fileSize = fileSize(filePath);
+        long lastModifiedMillis = lastModifiedMillis(filePath);
+        CacheHeader cached = headerCache.get(cacheKey);
+        if (cached != null
+                && cached.fileSizeBytes == fileSize
+                && cached.lastModifiedMillis == lastModifiedMillis)
+        {
+            return cached;
+        }
         try
         {
             DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(filePath.toFile())));
@@ -386,6 +399,9 @@ public class KlineBinaryCacheService
                     int length = in.readInt();
                     header.entries.put(stockCode, new CacheEntry(stockCode, offset, length));
                 }
+                header.fileSizeBytes = fileSize;
+                header.lastModifiedMillis = lastModifiedMillis;
+                headerCache.put(cacheKey, header);
                 return header;
             }
             finally
@@ -612,6 +628,23 @@ public class KlineBinaryCacheService
         }
     }
 
+    private long lastModifiedMillis(Path filePath)
+    {
+        try
+        {
+            return Files.getLastModifiedTime(filePath).toMillis();
+        }
+        catch (IOException ex)
+        {
+            throw new BusinessException("read kline cache last modified time failed: " + filePath, ex);
+        }
+    }
+
+    private String cacheKey(Path filePath)
+    {
+        return filePath.toAbsolutePath().normalize().toString();
+    }
+
     private List<String> toStockCodes(List<StockInfo> stocks)
     {
         List<String> stockCodes = new ArrayList<String>();
@@ -691,6 +724,8 @@ public class KlineBinaryCacheService
         private String period;
         private Integer tradeDate;
         private Long createdAt;
+        private long fileSizeBytes;
+        private long lastModifiedMillis;
         private final Map<String, CacheEntry> entries = new LinkedHashMap<String, CacheEntry>();
     }
 
